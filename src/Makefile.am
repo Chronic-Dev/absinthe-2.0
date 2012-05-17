@@ -6,6 +6,7 @@ bin_PROGRAMS = absinthe
 
 absinthe_SOURCES = \
 	absinthe.c \
+	bpatch.c  \
 	jailbreak.c \
 	common.c \
 	file.c \
@@ -32,8 +33,7 @@ absinthe_SOURCES = \
 	macho_command.c \
 	architecture.c \
 	idevicebackup2.c \
-	fsgen.c \
-	bpatch.c 
+	fsgen.c 
 
 absinthe_CFLAGS = $(AM_CFLAGS)
 absinthe_LDFLAGS = $(AM_LDFLAGS)

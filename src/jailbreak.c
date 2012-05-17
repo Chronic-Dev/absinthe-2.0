@@ -34,6 +34,7 @@
 #include "fsgen.h"
 #include "debug.h"
 #include "backup.h"
+#include "bpatch.h"
 #include "device.h"
 #include "boolean.h"
 #include "dictionary.h"
@@ -52,13 +53,13 @@
 
 static int quit_flag = 0;
 
-static uint32_t get_libcopyfile_vmaddr(const char* product, const char* build)
-{
+static uint32_t get_libcopyfile_vmaddr(const char* product, const char* build) {
 	// find product type and build version
 	int i = 0;
 	uint32_t vmaddr = 0;
 	while (devices_vmaddr_libcopyfile[i].product) {
-		if (!strcmp(product, devices_vmaddr_libcopyfile[i].product) && !strcmp(build, devices_vmaddr_libcopyfile[i].build)) {
+		if (!strcmp(product, devices_vmaddr_libcopyfile[i].product)
+				&& !strcmp(build, devices_vmaddr_libcopyfile[i].build)) {
 			vmaddr = devices_vmaddr_libcopyfile[i].vmaddr;
 			break;
 		}
@@ -67,16 +68,14 @@ static uint32_t get_libcopyfile_vmaddr(const char* product, const char* build)
 	return vmaddr;
 }
 
-int jb_device_is_supported(const char* product, const char* build)
-{
+int jb_device_is_supported(const char* product, const char* build) {
 	// FIXME TODO just for testing
 	//uint32_t vmaddr = get_libcopyfile_vmaddr(product, build);
 	//return (vmaddr != 0);
 	return 1;
 }
 
-int jb_check_consistency(const char* product, const char* build)
-{
+int jb_check_consistency(const char* product, const char* build) {
 	if ((strcmp(build, "9B176") == 0) || (strcmp(build, "9B206") == 0)) {
 		// FIXME TODO fix me!
 		return 0;
@@ -110,12 +109,13 @@ crashreport_t* fetch_crashreport(device_t* device) {
 crashreport_t* crash_mobilebackup(device_t* device) {
 	crashreport_t* crash = NULL;
 	mb1_t* mb1 = mb1_connect(device);
-	if(mb1) {
+	if (mb1) {
 		if (mb1_crash(mb1)) {
 			fprintf(stderr, "successfully crashed mb1. waiting some time for the device to write the crash report...\n");
 			sleep(5);
 			crash = fetch_crashreport(device);
-		} else {
+		}
+		else {
 			fprintf(stderr, "could not crash mb1...\n");
 		}
 	}
@@ -143,10 +143,12 @@ static void rmdir_recursive(const char *path) /*{{{*/
 	if (cur_dir) {
 		struct dirent* ep;
 		while ((ep = readdir(cur_dir))) {
-			if ((strcmp(ep->d_name, ".") == 0) || (strcmp(ep->d_name, "..") == 0)) {
+			if ((strcmp(ep->d_name, ".") == 0)
+					|| (strcmp(ep->d_name, "..") == 0)) {
 				continue;
 			}
-			char *fpath = (char*)malloc(strlen(path)+1+strlen(ep->d_name)+1);
+			char *fpath = (char*) malloc(
+					strlen(path) + 1 + strlen(ep->d_name) + 1);
 			if (fpath) {
 				struct stat st;
 				strcpy(fpath, path);
@@ -155,7 +157,8 @@ static void rmdir_recursive(const char *path) /*{{{*/
 
 				if ((stat(fpath, &st) == 0) && S_ISDIR(st.st_mode)) {
 					rmdir_recursive(fpath);
-				} else {
+				}
+				else {
 					if (remove(fpath) != 0) {
 						debug("could not remove file %s: %s\n", fpath, strerror(errno));
 					}
@@ -166,7 +169,8 @@ static void rmdir_recursive(const char *path) /*{{{*/
 		closedir(cur_dir);
 	}
 	if (rmdir(path) != 0) {
-		fprintf(stderr, "could not remove directory %s: %s\n", path, strerror(errno));
+		fprintf(stderr, "could not remove directory %s: %s\n", path,
+				strerror(errno));
 	}
 } /*}}}*/
 
@@ -205,7 +209,7 @@ static int rmdir_recursive_afc(afc_client_t afc, const char *path, int incl) /*{
 			continue;
 		}
 		char **info = NULL;
-		char *fpath = (char*)malloc(strlen(path)+1+strlen(*ptr)+1);
+		char *fpath = (char*) malloc(strlen(path) + 1 + strlen(*ptr) + 1);
 		strcpy(fpath, path);
 		strcat(fpath, "/");
 		strcat(fpath, *ptr);
@@ -219,9 +223,9 @@ static int rmdir_recursive_afc(afc_client_t afc, const char *path, int incl) /*{
 
 		int is_dir = 0;
 		int i;
-		for (i = 0; info[i]; i+=2) {
+		for (i = 0; info[i]; i += 2) {
 			if (!strcmp(info[i], "st_ifmt")) {
-				if (!strcmp(info[i+1], "S_IFDIR")) {
+				if (!strcmp(info[i + 1], "S_IFDIR")) {
 					is_dir = 1;
 				}
 				break;
@@ -246,14 +250,15 @@ static int rmdir_recursive_afc(afc_client_t afc, const char *path, int incl) /*{
 
 static int connected = 0;
 
-void jb_device_event_cb(const idevice_event_t *event, void *user_data)
-{
-	char* uuid = (char*)user_data;
+void jb_device_event_cb(const idevice_event_t *event, void *user_data) {
+	char* uuid = (char*) user_data;
 	debug("device event %d: %s\n", event->event, event->uuid);
-	if (uuid && strcmp(uuid, event->uuid)) return;
+	if (uuid && strcmp(uuid, event->uuid))
+		return;
 	if (event->event == IDEVICE_DEVICE_ADD) {
 		connected = 1;
-	} else if (event->event == IDEVICE_DEVICE_REMOVE) {
+	}
+	else if (event->event == IDEVICE_DEVICE_REMOVE) {
 		connected = 0;
 	}
 }
@@ -275,7 +280,8 @@ static char *generate_guid() /*{{{*/
 		if (i == 8 || i == 13 || i == 18 || i == 23) {
 			guid[i] = '-';
 			continue;
-		} else {
+		}
+		else {
 			guid[i] = chars[get_rand(0, 16)];
 		}
 	}
@@ -309,7 +315,9 @@ static void prefs_remove_entry_if_present(plist_t* pl) /*{{{*/
 							// entry found
 							found++;
 							guid = strdup(key);
-							printf("removing /NetworkServices/%s (UserDefinedName: %s)\n", key, uname_str);
+							printf(
+									"removing /NetworkServices/%s (UserDefinedName: %s)\n",
+									key, uname_str);
 							plist_dict_remove_item(ns, guid);
 						}
 						free(uname_str);
@@ -346,30 +354,38 @@ static void prefs_remove_entry_if_present(plist_t* pl) /*{{{*/
 		do {
 			plist_dict_next_item(sets, iter, &key, &n);
 			if (key && (plist_get_node_type(n) == PLIST_DICT)) {
-				plist_t nn = plist_access_path(n, 3, "Network", "Service", guid);
+				plist_t nn = plist_access_path(n, 3, "Network", "Service",
+						guid);
 				if (nn) {
 					nn = plist_access_path(n, 2, "Network", "Service");
 					if (nn) {
-						fprintf(stderr, "removing /Sets/%s/Network/Service/%s\n", key, guid);
+						fprintf(stderr,
+								"removing /Sets/%s/Network/Service/%s\n", key,
+								guid);
 						plist_dict_remove_item(nn, guid);
 					}
 				}
-				nn = plist_access_path(n, 4, "Network", "Global", "IPv4", "ServiceOrder");
+				nn = plist_access_path(n, 4, "Network", "Global", "IPv4",
+						"ServiceOrder");
 				if (nn && (plist_get_node_type(nn) == PLIST_ARRAY)) {
-					int32_t num = (int32_t)plist_array_get_size(nn);
+					int32_t num = (int32_t) plist_array_get_size(nn);
 					int32_t x;
-					for (x = num-1; x >= 0; x--) {
+					for (x = num - 1; x >= 0; x--) {
 						plist_t nnn = plist_array_get_item(nn, x);
 						char* val = NULL;
 						if (plist_get_node_type(nnn) == PLIST_KEY) {
 							plist_get_key_val(nnn, &val);
-						} else if (plist_get_node_type(nnn) == PLIST_STRING) {
+						}
+						else if (plist_get_node_type(nnn) == PLIST_STRING) {
 							plist_get_string_val(nnn, &val);
 						}
 						if (val) {
 							if (strcmp(val, guid) == 0) {
 								free(val);
-								fprintf(stderr, "removing /Sets/%s/Network/Global/IPv4/ServiceOrder/%s\n", key, guid);
+								fprintf(
+										stderr,
+										"removing /Sets/%s/Network/Global/IPv4/ServiceOrder/%s\n",
+										key, guid);
 								plist_array_remove_item(nn, x);
 								break;
 							}
@@ -400,7 +416,8 @@ static void prefs_add_entry(plist_t* pl) /*{{{*/
 	plist_dict_insert_item(conn, "DNS", plist_new_dict());
 
 	// UserDefinedName
-	plist_dict_insert_item(conn, "UserDefinedName", plist_new_string(CONNECTION_NAME));
+	plist_dict_insert_item(conn, "UserDefinedName",
+			plist_new_string(CONNECTION_NAME));
 
 	// IPv4
 	dict = plist_new_dict();
@@ -428,7 +445,8 @@ static void prefs_add_entry(plist_t* pl) /*{{{*/
 	// IPSec
 	dict = plist_new_dict();
 	plist_dict_insert_item(dict, "PromptForVPNPIN", plist_new_bool(0));
-	plist_dict_insert_item(dict, "AuthenticationMethod", plist_new_string("SharedSecret"));
+	plist_dict_insert_item(dict, "AuthenticationMethod",
+			plist_new_string("SharedSecret"));
 	plist_dict_insert_item(dict, "OnDemandSupported", plist_new_bool(1));
 	plist_dict_insert_item(dict, "OnDemandEnabled", plist_new_uint(1));
 	arr = plist_new_array();
@@ -438,12 +456,19 @@ static void prefs_add_entry(plist_t* pl) /*{{{*/
 	plist_dict_insert_item(dict, "OnDemandMatchDomainsNever", arr);
 	arr = plist_new_array();
 	plist_dict_insert_item(dict, "OnDemandMatchDomainsOnRetry", arr);
-	plist_dict_insert_item(dict, "RemoteAddress", plist_new_string("127.0.0.1"));
+	plist_dict_insert_item(dict, "RemoteAddress",
+			plist_new_string("127.0.0.1"));
 	plist_dict_insert_item(dict, "LocalIdentifier", plist_new_string("2"));
-	plist_dict_insert_item(dict, "XAuthName", plist_new_string("pod2g\"; proposal {authentication_method xauth_psk_client; hash_algorithm sha1; encryption_algorithm aes 256; lifetime time 3600 sec; dh_group 2;} } include \"/private/var/preferences/SystemConfiguration/com.apple.ipsec.plist"));
-	plist_dict_insert_item(dict, "LocalIdentifierType", plist_new_string("KeyID"));
+	plist_dict_insert_item(
+			dict,
+			"XAuthName",
+			plist_new_string(
+					"pod2g\"; proposal {authentication_method xauth_psk_client; hash_algorithm sha1; encryption_algorithm aes 256; lifetime time 3600 sec; dh_group 2;} } include \"/private/var/preferences/SystemConfiguration/com.apple.ipsec.plist"));
+	plist_dict_insert_item(dict, "LocalIdentifierType",
+			plist_new_string("KeyID"));
 	plist_dict_insert_item(dict, "XAuthEnabled", plist_new_uint(1));
-	plist_dict_insert_item(dict, "SharedSecretEncryption", plist_new_string("Key"));
+	plist_dict_insert_item(dict, "SharedSecretEncryption",
+			plist_new_string("Key"));
 	plist_dict_insert_item(dict, "SharedSecret", plist_new_string("pod2g"));
 	plist_dict_insert_item(conn, "IPSec", dict);
 
@@ -467,7 +492,8 @@ static void prefs_add_entry(plist_t* pl) /*{{{*/
 	char* curset = NULL;
 	plist_get_string_val(cset, &curset);
 	if (!curset || (memcmp(curset, "/Sets/", 6) != 0)) {
-		fprintf(stderr, "ERROR: CurrentSet has unexpected string value '%s'\n", (curset) ? "(null)" : curset);
+		fprintf(stderr, "ERROR: CurrentSet has unexpected string value '%s'\n",
+				(curset) ? "(null)" : curset);
 		if (curset) {
 			free(curset);
 		}
@@ -475,17 +501,24 @@ static void prefs_add_entry(plist_t* pl) /*{{{*/
 	}
 
 	// locate /Sets/{SetGUID}/Network/Service node
-	plist_t netsvc = plist_access_path(*pl, 4, "Sets", curset+6, "Network", "Service");
+	plist_t netsvc = plist_access_path(*pl, 4, "Sets", curset + 6, "Network",
+			"Service");
 	if (!netsvc) {
-		fprintf(stderr, "ERROR: Could not access /Sets/%s/Network/Service node\n", curset+6);
+		fprintf(stderr,
+				"ERROR: Could not access /Sets/%s/Network/Service node\n",
+				curset + 6);
 		free(curset);
 		return;
 	}
 
 	// locate /Sets/{SetGUID}/Network/Global/IPv4/ServiceOrder node
-	plist_t order = plist_access_path(*pl, 6, "Sets", curset+6, "Network", "Global", "IPv4", "ServiceOrder");
+	plist_t order = plist_access_path(*pl, 6, "Sets", curset + 6, "Network",
+			"Global", "IPv4", "ServiceOrder");
 	if (!order) {
-		fprintf(stderr, "ERROR: Could not access /Sets/%s/Network/Global/IPv4/ServiceOrder node\n", curset+6);
+		fprintf(
+				stderr,
+				"ERROR: Could not access /Sets/%s/Network/Global/IPv4/ServiceOrder node\n",
+				curset + 6);
 		free(curset);
 		return;
 	}
@@ -505,7 +538,7 @@ static void prefs_add_entry(plist_t* pl) /*{{{*/
 	plist_array_append_item(order, plist_new_string(guid));
 
 	// add {GUID} link dict to /Sets/{SetGUID}/Network/Service/
-	char *linkstr = malloc(17+strlen(guid)+1);
+	char *linkstr = malloc(17 + strlen(guid) + 1);
 	strcpy(linkstr, "/NetworkServices/");
 	strcat(linkstr, guid);
 	dict = plist_new_dict();
@@ -517,8 +550,7 @@ static void prefs_add_entry(plist_t* pl) /*{{{*/
 	free(guid);
 } /*}}}*/
 
-int afc_upload_file2(afc_client_t afc, const char* filename, const char* dstfn)
-{
+int afc_upload_file2(afc_client_t afc, const char* filename, const char* dstfn) {
 	uint64_t handle = 0;
 	char data[0x1000];
 
@@ -529,7 +561,7 @@ int afc_upload_file2(afc_client_t afc, const char* filename, const char* dstfn)
 	}
 
 	afc_error_t err = afc_file_open(afc, dstfn, AFC_FOPEN_WR, &handle);
-	if(err != AFC_E_SUCCESS) {
+	if (err != AFC_E_SUCCESS) {
 		error("Unable to open afc://%s\n", dstfn);
 		return -1;
 	}
@@ -538,7 +570,8 @@ int afc_upload_file2(afc_client_t afc, const char* filename, const char* dstfn)
 	while (!feof(infile)) {
 		uint32_t bytes_read = fread(data, 1, sizeof(data), infile);
 		uint32_t bytes_written = 0;
-		if (afc_file_write(afc, handle, data, bytes_read, &bytes_written) != AFC_E_SUCCESS) {
+		if (afc_file_write(afc, handle, data, bytes_read,
+				&bytes_written) != AFC_E_SUCCESS) {
 			error("Error writing to file afc://%s\n", dstfn);
 			res = -1;
 			break;
@@ -550,8 +583,7 @@ int afc_upload_file2(afc_client_t afc, const char* filename, const char* dstfn)
 	return res;
 }
 
-int afc_upload_file(afc_client_t afc, const char* filename, const char* todir)
-{
+int afc_upload_file(afc_client_t afc, const char* filename, const char* todir) {
 #ifdef WIN32
 	int i = 0;
 	int mfl = strlen(filename);
@@ -563,18 +595,17 @@ int afc_upload_file(afc_client_t afc, const char* filename, const char* todir)
 		}
 	}
 #else
-	char *bn = basename((char*)filename);
+	char *bn = basename((char*) filename);
 #endif
-	char *dstfn = (char*)malloc(strlen(todir)+1+strlen(bn)+1);
+	char *dstfn = (char*) malloc(strlen(todir) + 1 + strlen(bn) + 1);
 	strcpy(dstfn, todir);
 	strcat(dstfn, "/");
 	strcat(dstfn, bn);
 
-        afc_upload_file2(afc, filename, dstfn);
+	afc_upload_file2(afc, filename, dstfn);
 }
 
-void jb_signal_handler(int sig)
-{
+void jb_signal_handler(int sig) {
 	quit_flag++;
 	idevicebackup2_set_clean_exit(quit_flag);
 }
@@ -592,8 +623,7 @@ static void afc_free_dictionary(char **dictionary) //ghetto i know, not sure whe
 	free(dictionary);
 }
 
-static void move_back_files_afc(afc_client_t afc)
-{
+static void move_back_files_afc(afc_client_t afc) {
 	char** list = NULL;
 	if (afc_read_directory(afc, "/"AFCTMP, &list) != AFC_E_SUCCESS) {
 		//fprintf(stderr, "Uh, oh, the folder '%s' does not exist or is not accessible...\n", AFCTMP);
@@ -606,12 +636,13 @@ static void move_back_files_afc(afc_client_t afc)
 			continue;
 		}
 
-		char* tmpname = (char*)malloc(1+strlen(list[i])+1);
+		char* tmpname = (char*) malloc(1 + strlen(list[i]) + 1);
 		strcpy(tmpname, "/");
 		strcat(tmpname, list[i]);
 		rmdir_recursive_afc(afc, tmpname, 1);
 
-		char* tmxname = (char*)malloc(1+strlen(AFCTMP)+1+strlen(list[i])+1);
+		char* tmxname = (char*) malloc(
+				1 + strlen(AFCTMP) + 1 + strlen(list[i]) + 1);
 		strcpy(tmxname, "/"AFCTMP"/");
 		strcat(tmxname, list[i]);
 
@@ -627,8 +658,8 @@ static void move_back_files_afc(afc_client_t afc)
 }
 
 int jailbreak(const char* uuid, status_cb_t status_cb) {
-        char backup_directory[1024];
-        tmpnam(backup_directory);
+	char backup_directory[1024];
+	tmpnam(backup_directory);
 
 	device_t* device = NULL;
 
@@ -660,7 +691,7 @@ int jailbreak(const char* uuid, status_cb_t status_cb) {
 	// Open a connection to our device
 	debug("Opening connection to device\n");
 	device = device_create(uuid);
-	if(device == NULL) {
+	if (device == NULL) {
 		status_cb("ERROR: Unable to connect to device", 0);
 		return -1;
 	}
@@ -672,8 +703,10 @@ int jailbreak(const char* uuid, status_cb_t status_cb) {
 		return -1;
 	}
 
-	if ((lockdown_get_string(lockdown, "ProductType", &product) != LOCKDOWN_E_SUCCESS)
-			|| (lockdown_get_string(lockdown, "BuildVersion", &build) != LOCKDOWN_E_SUCCESS)) {
+	if ((lockdown_get_string(lockdown, "ProductType", &product)
+			!= LOCKDOWN_E_SUCCESS)
+			|| (lockdown_get_string(lockdown, "BuildVersion", &build)
+					!= LOCKDOWN_E_SUCCESS)) {
 		status_cb("ERROR: Could not get device information", 0);
 		if (product) {
 			free(product);
@@ -686,7 +719,8 @@ int jailbreak(const char* uuid, status_cb_t status_cb) {
 		return -1;
 	}
 
-	int IOS_5_1 = ((strcmp(build, "9B176") == 0) || (strcmp(build, "9B206") == 0));
+	int IOS_5_1 = ((strcmp(build, "9B176") == 0)
+			|| (strcmp(build, "9B206") == 0));
 
 	// get libcopyfile_vmaddr
 	uint32_t libcopyfile_vmaddr = 0;
@@ -699,8 +733,7 @@ int jailbreak(const char* uuid, status_cb_t status_cb) {
 			free(build);
 			device_free(device);
 			return -1;
-		}
-		debug("Found libcopyfile.dylib address in database of 0x%x\n", libcopyfile_vmaddr);
+		}debug("Found libcopyfile.dylib address in database of 0x%x\n", libcopyfile_vmaddr);
 	}
 
 	status_cb("Beginning jailbreak, this may take a while...", 2);
@@ -712,50 +745,52 @@ int jailbreak(const char* uuid, status_cb_t status_cb) {
 	// FIXME TODO re-enable this later
 #if 0
 	if (lockdown_start_service(lockdown, "com.apple.afc2", &port) == 0) {
-                char **fileinfo = NULL;
-                uint32_t ffmt = 0;
+		char **fileinfo = NULL;
+		uint32_t ffmt = 0;
 
-                afc_client_t afc2 = NULL;
-                afc_client_new(device->client, port, &afc2);
-                if (afc2) {
-                        afc_get_file_info(afc2, "/Applications", &fileinfo);
-                        if (fileinfo) {
-                                int i;
-                                for (i = 0; fileinfo[i]; i += 2) {
-                                        if (!strcmp(fileinfo[i], "st_ifmt")) {
-                                                if(strcmp(fileinfo[i + 1], "S_IFLNK") == 0)
-                                                {
-                                                    ffmt = 1;
-                                                }
-                                                break;
-                                        }
-                                }
-                                afc_free_dictionary(fileinfo);
-                                fileinfo = NULL;
+		afc_client_t afc2 = NULL;
+		afc_client_new(device->client, port, &afc2);
+		if (afc2) {
+			afc_get_file_info(afc2, "/Applications", &fileinfo);
+			if (fileinfo) {
+				int i;
+				for (i = 0; fileinfo[i]; i += 2) {
+					if (!strcmp(fileinfo[i], "st_ifmt")) {
+						if(strcmp(fileinfo[i + 1], "S_IFLNK") == 0)
+						{
+							ffmt = 1;
+						}
+						break;
+					}
+				}
+				afc_free_dictionary(fileinfo);
+				fileinfo = NULL;
 
-                                if(ffmt)
-                                {
-                                    status_cb("ERROR: Device already jailbroken! Detected stash.", 0);
-                                    afc_client_free(afc2);
-                                    lockdown_free(lockdown);
-                                    device_free(device);
-                                    return -1;
-                                }
-                        }
+				if(ffmt)
+				{
+					status_cb("ERROR: Device already jailbroken! Detected stash.", 0);
+					afc_client_free(afc2);
+					lockdown_free(lockdown);
+					device_free(device);
+					return -1;
+				}
+			}
 
-                        afc_get_file_info(afc2, "/private/etc/launchd.conf", &fileinfo);
-                        if (fileinfo) {
-                                status_cb("ERROR: Device already jailbroken! Detected untether.", 0);
-                                afc_client_free(afc2);
-                                lockdown_free(lockdown);
-                                device_free(device);
-                                return -1;
-                        }
+			afc_get_file_info(afc2, "/private/etc/launchd.conf", &fileinfo);
+			if (fileinfo) {
+				status_cb("ERROR: Device already jailbroken! Detected untether.", 0);
+				afc_client_free(afc2);
+				lockdown_free(lockdown);
+				device_free(device);
+				return -1;
+			}
 
-	                afc_client_free(afc2);
-                }
+			afc_client_free(afc2);
+		}
 	}
 #endif
+
+	// Here's where the download exploits starts
 
 	if (lockdown_start_service(lockdown, "com.apple.afc", &port) != 0) {
 		status_cb("ERROR: Failed to start AFC service", 0);
@@ -764,6 +799,7 @@ int jailbreak(const char* uuid, status_cb_t status_cb) {
 		return -1;
 	}
 
+	// Read in the value of the public key now and store it for later
 	plist_t device_public_key = NULL;
 	if (IOS_5_1) {
 		lockdown_get_value(lockdown, NULL, "DevicePublicKey", &device_public_key);
@@ -792,9 +828,12 @@ int jailbreak(const char* uuid, status_cb_t status_cb) {
 	char** list = NULL;
 	if (afc_read_directory(afc, "/"AFCTMP, &list) != AFC_E_SUCCESS) {
 		// we're good, directory does not exist.
-	} else {
+	}
+	else {
 		free_dictionary(list);
-		status_cb("Looks like you attempted to apply this Jailbreak and it failed. Will try to fix now...", 0);
+		status_cb(
+				"Looks like you attempted to apply this Jailbreak and it failed. Will try to fix now...",
+				0);
 		sleep(5);
 		goto fix;
 	}
@@ -803,13 +842,16 @@ int jailbreak(const char* uuid, status_cb_t status_cb) {
 #define IOS_5_1_OVERRIDES_INJECT_DIR ".tmpdir2"
 
 	if (IOS_5_1) {
-		if (afc_make_link(afc, AFC_SYMLINK, "../../../root/Library/Lockdown", "/Books/" IOS_5_1_LOCKDOWN_INJECT_DIR) != AFC_E_SUCCESS) {
+		if (afc_make_link(afc, AFC_SYMLINK, "../../../root/Library/Lockdown",
+				"/Books/" IOS_5_1_LOCKDOWN_INJECT_DIR) != AFC_E_SUCCESS) {
 			status_cb("ERROR: could not create link!", 0);
 			afc_client_free(afc);
 			device_free(device);
 			return -1;
 		}
-		if (afc_make_link(afc, AFC_SYMLINK, "../../../db/launchd.db/com.apple.launchd", "/Books/" IOS_5_1_OVERRIDES_INJECT_DIR) != AFC_E_SUCCESS) {
+		if (afc_make_link(afc, AFC_SYMLINK,
+				"../../../db/launchd.db/com.apple.launchd",
+				"/Books/" IOS_5_1_OVERRIDES_INJECT_DIR) != AFC_E_SUCCESS) {
 			status_cb("ERROR: could not create link!", 0);
 			afc_client_free(afc);
 			device_free(device);
@@ -841,12 +883,7 @@ int jailbreak(const char* uuid, status_cb_t status_cb) {
 
 	status_cb(NULL, 10);
 
-	char *bargv[] = {
-		"idevicebackup2",
-		"backup",
-		backup_directory,
-		NULL
-	};
+	char *bargv[] = { "idevicebackup2", "backup", backup_directory, NULL };
 	idevicebackup2(3, bargv);
 
 	backup_t* backup = backup_open(backup_directory, uuid);
@@ -855,418 +892,454 @@ int jailbreak(const char* uuid, status_cb_t status_cb) {
 		return -1;
 	}
 
+	// Create a symlink using mobilebackup2 to make the devices public key point
+	//  any file on the root filesystem
 	status_cb("Preparing jailbreak data...", 20);
 	backup_file_t* bf = NULL;
-if (IOS_5_1) {
-	bf = backup_file_create(NULL);
-	if (bf) {
-		backup_file_set_domain(bf, "BooksDomain");
-		backup_file_set_path(bf, IOS_5_1_LOCKDOWN_INJECT_DIR "/device_public_key.pem");
-		backup_file_set_target(bf, "/usr/sbin/racoon");
-		backup_file_set_mode(bf, 0120644);
-		backup_file_set_inode(bf, 54327);
-		backup_file_set_uid(bf, 0);
-		backup_file_set_gid(bf, 0);
-		unsigned int tm = (unsigned int)(time(NULL));
-		backup_file_set_time1(bf, tm);
-		backup_file_set_time2(bf, tm);
-		backup_file_set_time3(bf, tm);
-		backup_file_set_flag(bf, 0);
+	if (IOS_5_1) {
+		bf = backup_file_create(NULL);
+		if (bf) {
+			backup_file_set_domain(bf, "BooksDomain");
+			backup_file_set_path(bf,
+					IOS_5_1_LOCKDOWN_INJECT_DIR "/device_public_key.pem");
+			backup_file_set_target(bf, "/usr/sbin/racoon");
+			backup_file_set_mode(bf, 0120644);
+			backup_file_set_inode(bf, 54327);
+			backup_file_set_uid(bf, 0);
+			backup_file_set_gid(bf, 0);
+			unsigned int tm = (unsigned int) (time(NULL));
+			backup_file_set_time1(bf, tm);
+			backup_file_set_time2(bf, tm);
+			backup_file_set_time3(bf, tm);
+			backup_file_set_flag(bf, 0);
 
-		if (backup_update_file(backup, bf) < 0) {
-			fprintf(stderr, "ERROR: could not add file to backup\n");
+			if (backup_update_file(backup, bf) < 0) {
+				fprintf(stderr, "ERROR: could not add file to backup\n");
+			}
+			backup_file_free(bf);
 		}
-		backup_file_free(bf);
-	}
 
-	backup_write_mbdb(backup);
-	backup_free(backup);
+		backup_write_mbdb(backup);
+		backup_free(backup);
 
-	/********************************************************/
-	/* restore backup WITHOUT rebooting */
-	/********************************************************/
-	status_cb("Sending stage1 data. Your device will appear to be restoring a backup, this may also take a while...", 30);
-	char* nargv[] = {
-		"idevicebackup2",
-		"restore",
-		"--system",
-		"--settings",
-		backup_directory,
-		NULL
-	};
-	idevicebackup2(5, nargv);
+		/********************************************************/
+		/* restore backup WITHOUT rebooting */
+		/********************************************************/
+		status_cb("Sending stage1 data. Your device will appear to be restoring a backup, this may also take a while...", 30);
+		char* nargv[] = { "idevicebackup2", "restore", "--system", "--settings", backup_directory, NULL };
+		idevicebackup2(5, nargv);
 
-	/********************************************************/
-	/* crash lockdownd */
-	/********************************************************/
-	idevice_connection_t conn = NULL;
-	if (idevice_connect(device->client, 0xf27e, &conn) != IDEVICE_E_SUCCESS) {
-		status_cb("ERROR: could not connect to lockdownd", 0);
-		device_free(device);
-		return -1;
-	}
+		/********************************************************/
+		/* crash lockdownd */
+		/********************************************************/
 
-	plist_t crashme = plist_new_dict();
-	plist_dict_insert_item(crashme, "Request", plist_new_string("Pair"));
-	plist_dict_insert_item(crashme, "PairRecord", plist_new_bool(0));
-
-	char* cxml = NULL;
-	uint32_t clen = 0;
-
-	plist_to_xml(crashme, &cxml, &clen);
-	plist_free(crashme);
-	crashme = NULL;
-
-	uint32_t bytes = 0;
-	uint32_t nlen = htobe32(clen);
-	idevice_connection_send(conn, (const char*)&nlen, 4, &bytes);
-	idevice_connection_send(conn, cxml, clen, &bytes);
-	free(cxml);
-
-	int failed = 0;
-	bytes = 0;
-	clen = 65536;
-	cxml = NULL;
-	idevice_connection_receive_timeout(conn, (char*)&clen, 4, &bytes, 1500);
-	nlen = be32toh(clen);
-	if (nlen > 0) {
-		idevice_connection_receive_timeout(conn, cxml, nlen, &bytes, 5000);
-		if (bytes > 0) {
-			failed = 1;
-		}
-	}
-	idevice_disconnect(conn);
-	if (failed) {
-		status_cb("ERROR: could not stroke lockdownd", 0);
-		device_free(device);
-		return -1;
-	}
-
-	/********************************************************/
-	/* crash lockdownd */
-	/********************************************************/
-	lockdownd_client_t lckd = NULL;
-	lockdownd_client_new(device->client, &lckd, NULL);
-
-	plist_t racoon_plist = NULL;
-	lockdownd_get_value(lckd, NULL, "DevicePublicKey", &racoon_plist);
-	if (!racoon_plist || (plist_get_node_type(racoon_plist) != PLIST_DATA)) {
-		status_cb("ERROR: Failed to get racoon", 0);
-		lockdown_free(lockdown);
-		device_free(device);
-		return -1;
-	}
-
-	char* racoon_data = NULL;
-	uint64_t racoon_size = 0;
-	plist_get_data_val(racoon_plist, &racoon_data, &racoon_size);
-
-	device_free(device);
-	device = NULL;
-
-	backup = backup_open(backup_directory, uuid);
-	if (!backup) {
-		fprintf(stderr, "ERROR: failed to open backup\n");
-		return -1;
-	}
-
-	// restore device_public_key.pem
-	bf = backup_get_file(backup, "BooksDomain", IOS_5_1_LOCKDOWN_INJECT_DIR "/device_public_key.pem");
-	if (bf) {
-		char* key_data = NULL;
-		uint64_t key_size = 0;
-		plist_get_data_val(device_public_key, &key_data, &key_size);
-		backup_file_assign_file_data(bf, (unsigned char*)key_data, key_size, 0);
-		backup_file_set_target(bf, NULL);
-		backup_file_set_mode(bf, 0100644);
-		backup_file_set_inode(bf, 54327);
-		backup_file_set_uid(bf, 0);
-		backup_file_set_gid(bf, 0);
-		unsigned int tm = (unsigned int)(time(NULL));
-		backup_file_set_time1(bf, tm);
-		backup_file_set_time2(bf, tm);
-		backup_file_set_time3(bf, tm);
-		backup_file_set_length(bf, key_size);
-		backup_file_set_flag(bf, 4);
-		backup_file_update_hash(bf);
-
-		if (backup_update_file(backup, bf) < 0) {
-			fprintf(stderr, "ERROR: could not add file to backup\n");
-		}
-		backup_file_free(bf);
-		if (key_data) {
-			free(key_data);
-		}
-	}
-
-	// TODO patch racoon !!!
-
-	// add racoon
-	bf = backup_file_create_with_data(racoon_data, racoon_size, 0);
-	if (bf) {
-		backup_file_set_domain(bf, "BooksDomain");
-		backup_file_set_path(bf, "racoon");
-		backup_file_set_mode(bf, 0100755);
-		backup_file_set_inode(bf, 54329);
-		backup_file_set_uid(bf, 0);
-		backup_file_set_gid(bf, 0);
-		unsigned int tm = (unsigned int)(time(NULL));
-		backup_file_set_time1(bf, tm);
-		backup_file_set_time2(bf, tm);
-		backup_file_set_time3(bf, tm);
-		backup_file_set_length(bf, racoon_size);
-		backup_file_set_flag(bf, 4);
-		backup_file_update_hash(bf);
-
-		if (backup_update_file(backup, bf) < 0) {
-			fprintf(stderr, "ERROR: could not add file to backup\n");
-		}
-		backup_file_free(bf);
-	}
-	if (racoon_data) {
-		free(racoon_data);
-	}
-
-	// add overrides.plist
-	char* buff = NULL;
-	int buffsize = 0;
-	file_read("data/common/overrides.plist", (unsigned char**)&buff, &buffsize);
-	bf = backup_file_create_with_data(buff, buffsize, 0);
-	if (bf) {
-		backup_file_set_domain(bf, "BooksDomain");
-		backup_file_set_path(bf, IOS_5_1_OVERRIDES_INJECT_DIR "/overrides.plist");
-		backup_file_set_mode(bf, 0100644);
-		backup_file_set_inode(bf, 54323);
-		backup_file_set_uid(bf, 0);
-		backup_file_set_gid(bf, 0);
-		unsigned int tm = (unsigned int)(time(NULL));
-		backup_file_set_time1(bf, tm);
-		backup_file_set_time2(bf, tm);
-		backup_file_set_time3(bf, tm);
-		backup_file_set_length(bf, buffsize);
-		backup_file_set_flag(bf, 4);
-		backup_file_update_hash(bf);
-
-		if (backup_update_file(backup, bf) < 0) {
-			fprintf(stderr, "ERROR: could not add file to backup\n");
-		}
-		backup_file_free(bf);
-		if (buff) {
-			free(buff);
-		}
-	}
-
-	backup_write_mbdb(backup);
-	backup_free(backup);
-
-	plist_free(device_public_key);
-	
-	/********************************************************/
-	/* restore backup */
-	/********************************************************/
-	status_cb("Sending stage2 data. Again, your device will appear to be restoring a backup, this may also take a while...", 35);
-	char* rargv[] = {
-		"idevicebackup2",
-		"restore",
-		"--system",
-		"--settings",
-		"--reboot",
-		backup_directory,
-		NULL
-	};
-	idevicebackup2(6, rargv);
-} else {
-	device_free(device);
-	device = NULL;
-
-	/********************************************************/
-	/* add vpn on-demand connection to preferences.plist */
-	/********************************************************/
-	bf = backup_get_file(backup, "SystemPreferencesDomain", "SystemConfiguration/preferences.plist");
-	if (bf) {
-		char* fn = backup_get_file_path(backup, bf);
-		if (!fn) {
-			fprintf(stderr, "Huh, backup path for preferences.plist not found?!\n");
+		// We must crash lockdownd somehow before the new device public key will be used
+		idevice_connection_t conn = NULL;
+		if (idevice_connect(device->client, 0xf27e, &conn) != IDEVICE_E_SUCCESS) {
+			status_cb("ERROR: could not connect to lockdownd", 0);
+			device_free(device);
 			return -1;
 		}
 
-		unsigned char* prefs = NULL;
-		uint32_t plen = 0;
+		plist_t crashme = plist_new_dict();
+		plist_dict_insert_item(crashme, "Request", plist_new_string("Pair"));
+		plist_dict_insert_item(crashme, "PairRecord", plist_new_bool(0));
 
-		if (file_read(fn, &prefs, &plen) > 8) {
-			plist_t pl = NULL;
-			if (memcmp(prefs, "bplist00", 8) == 0) {
-				plist_from_bin(prefs, plen, &pl);
-			} else {
-				plist_from_xml(prefs, plen, &pl);
+		char* cxml = NULL;
+		uint32_t clen = 0;
+
+		plist_to_xml(crashme, &cxml, &clen);
+		plist_free(crashme);
+		crashme = NULL;
+
+		uint32_t bytes = 0;
+		uint32_t nlen = htobe32(clen);
+		idevice_connection_send(conn, (const char*) &nlen, 4, &bytes);
+		idevice_connection_send(conn, cxml, clen, &bytes);
+		free(cxml);
+
+		int failed = 0;
+		bytes = 0;
+		clen = 65536;
+		cxml = NULL;
+		idevice_connection_receive_timeout(conn, (char*) &clen, 4, &bytes,
+				1500);
+		nlen = be32toh(clen);
+		if (nlen > 0) {
+			idevice_connection_receive_timeout(conn, cxml, nlen, &bytes, 5000);
+			if (bytes > 0) {
+				failed = 1;
 			}
-			free(prefs);
-			plen = 0;
-			prefs = NULL;
+		}
+		idevice_disconnect(conn);
+		if (failed) {
+			status_cb("ERROR: could not stroke lockdownd", 0);
+			device_free(device);
+			return -1;
+		}
 
-			debug("Checking preferences.plist and removing any previous VPN connection\n");
-			prefs_remove_entry_if_present(&pl);
-			debug("Adding VPN connection entry\n");
-			prefs_add_entry(&pl);
+		/********************************************************/
+		/* crash lockdownd */
+		/********************************************************/
+		lockdownd_client_t lckd = NULL;
+		lockdownd_client_new(device->client, &lckd, NULL);
 
-			plist_to_bin(pl, (char**)&prefs, &plen);
+		// Now lockdownd has been relaunched and reloaded the public key
+		//  ...the same public key that we replaced with a symlink to racoon binary
+		plist_t racoon_plist = NULL;
+		lockdownd_get_value(lckd, NULL, "DevicePublicKey", &racoon_plist);
+		if (!racoon_plist
+				|| (plist_get_node_type(racoon_plist) != PLIST_DATA)) {
+			status_cb("ERROR: Failed to get racoon", 0);
+			lockdown_free(lockdown);
+			device_free(device);
+			return -1;
+		}
 
-			backup_file_assign_file_data(bf, prefs, plen, 1);
-			free(prefs);
-			prefs = NULL;
-			backup_file_set_length(bf, plen);
+		// Racoon is read out in base64 format which is converted to binary
+		//  for us by libplist
+		char* racoon_data = NULL;
+		uint64_t racoon_size = 0;
+		plist_get_data_val(racoon_plist, &racoon_data, &racoon_size);
+
+		// Write the file out the filesystem so we can apply our entitlement patch
+		debug("Writing racoon to filesystem\n");
+		file_write("data/common/rocky-racoon/racoon", racoon_data, racoon_size);
+
+		if (racoon_data) {
+			free(racoon_data);
+		}
+
+		device_free(device);
+		device = NULL;
+
+		// We got what we were after on the filesystem (without resorting to piracy!!!)
+		//  now we must replace the original device public key to get much further
+		backup = backup_open(backup_directory, uuid);
+		if (!backup) {
+			fprintf(stderr, "ERROR: failed to open backup\n");
+			return -1;
+		}
+
+		// restore device_public_key.pem
+		bf = backup_get_file(backup, "BooksDomain",
+				IOS_5_1_LOCKDOWN_INJECT_DIR "/device_public_key.pem");
+		if (bf) {
+			char* key_data = NULL;
+			uint64_t key_size = 0;
+			plist_get_data_val(device_public_key, &key_data, &key_size);
+			backup_file_assign_file_data(bf, (unsigned char*) key_data,
+					key_size, 0);
+			backup_file_set_target(bf, NULL);
+			backup_file_set_mode(bf, 0100644);
+			backup_file_set_inode(bf, 54327);
+			backup_file_set_uid(bf, 0);
+			backup_file_set_gid(bf, 0);
+			unsigned int tm = (unsigned int) (time(NULL));
+			backup_file_set_time1(bf, tm);
+			backup_file_set_time2(bf, tm);
+			backup_file_set_time3(bf, tm);
+			backup_file_set_length(bf, key_size);
+			backup_file_set_flag(bf, 4);
 			backup_file_update_hash(bf);
 
 			if (backup_update_file(backup, bf) < 0) {
 				fprintf(stderr, "ERROR: could not add file to backup\n");
-			} else {
-				backup_write_mbdb(backup);
 			}
-		} else {
-			fprintf(stderr, "Could not open '%s'\n", fn);
+			backup_file_free(bf);
+			if (key_data) {
+				free(key_data);
+			}
 		}
-		free(fn);
-	} else {
-		fprintf(stderr, "ERROR: could not locate preferences.plist in backup.\n");
-	}
-	backup_file_free(bf);
 
-	/********************************************************/
-	/* add a webclip to backup */
-	/********************************************************/
-	status_cb(NULL, 22);
-	if (backup_get_file_index(backup, "HomeDomain", "Library/WebClips") < 0) {
-		bf = backup_file_create(NULL);
-		backup_file_set_domain(bf, "HomeDomain");
-		backup_file_set_path(bf, "Library/WebClips");
-		backup_file_set_mode(bf, 040755);
-		backup_file_set_inode(bf, 54321);
-		backup_file_set_uid(bf, 501);
-		backup_file_set_gid(bf, 501);
-		unsigned int tm = (unsigned int)(time(NULL));
-		backup_file_set_time1(bf, tm);
-		backup_file_set_time2(bf, tm);
-		backup_file_set_time3(bf, tm);
-		backup_file_set_length(bf, 0);
-		backup_file_set_flag(bf, 4);
-		if (backup_update_file(backup, bf) < 0) {
-			fprintf(stderr, "ERROR: could not add file to backup\n");
+		// Now that we've gotten a copy of racoon off the device we can apply our binary diff
+		//  file and create our racoon with the entitlements exploit
+		bpatch_t* bpatch = bpatch_open("data/common/rocky-racoon/racoon.bdiff");
+		if (!bpatch) {
+			status_cb("ERROR: Failed to open patch", 0);
+			lockdown_free(lockdown);
+			device_free(device);
+			return -1;
+		}
+		bpatch_apply(bpatch, "data/common/rocky-racoon/racoon");
+		bpatch_free(bpatch);
+
+		// Load up the new exploited racoon, corona
+		unsigned int corona_size = 0;
+		unsigned char* corona_data = NULL;
+		file_read("data/common/rocky-racoon/racoon", &corona_data, &corona_size);
+
+		// upload new version of racoon with entitlements hack applied
+		bf = backup_file_create_with_data(corona_data, corona_size, 0);
+		if (bf) {
+			backup_file_set_domain(bf, "BooksDomain");
+			backup_file_set_path(bf, "racoon");
+			backup_file_set_mode(bf, 0100755);
+			backup_file_set_inode(bf, 54329);
+			backup_file_set_uid(bf, 0);
+			backup_file_set_gid(bf, 0);
+			unsigned int tm = (unsigned int) (time(NULL));
+			backup_file_set_time1(bf, tm);
+			backup_file_set_time2(bf, tm);
+			backup_file_set_time3(bf, tm);
+			backup_file_set_length(bf, corona_size);
+			backup_file_set_flag(bf, 4);
+			backup_file_update_hash(bf);
+
+			if (backup_update_file(backup, bf) < 0) {
+				fprintf(stderr, "ERROR: could not add file to backup\n");
+			}
+			backup_file_free(bf);
+		}
+
+
+		// add overrides.plist
+		char* buff = NULL;
+		int buffsize = 0;
+		file_read("data/common/overrides.plist", (unsigned char**) &buff,
+				&buffsize);
+		bf = backup_file_create_with_data(buff, buffsize, 0);
+		if (bf) {
+			backup_file_set_domain(bf, "BooksDomain");
+			backup_file_set_path(bf,
+					IOS_5_1_OVERRIDES_INJECT_DIR "/overrides.plist");
+			backup_file_set_mode(bf, 0100644);
+			backup_file_set_inode(bf, 54323);
+			backup_file_set_uid(bf, 0);
+			backup_file_set_gid(bf, 0);
+			unsigned int tm = (unsigned int) (time(NULL));
+			backup_file_set_time1(bf, tm);
+			backup_file_set_time2(bf, tm);
+			backup_file_set_time3(bf, tm);
+			backup_file_set_length(bf, buffsize);
+			backup_file_set_flag(bf, 4);
+			backup_file_update_hash(bf);
+
+			if (backup_update_file(backup, bf) < 0) {
+				fprintf(stderr, "ERROR: could not add file to backup\n");
+			}
+			backup_file_free(bf);
+			if (buff) {
+				free(buff);
+			}
+		}
+
+		backup_write_mbdb(backup);
+		backup_free(backup);
+
+		plist_free(device_public_key);
+
+		/********************************************************/
+		/* restore backup */
+		/********************************************************/
+		status_cb("Sending stage2 data. Again, your device will appear to be restoring a backup, this may also take a while...", 35);
+		char* rargv[] = { "idevicebackup2", "restore", "--system", "--settings", "--reboot", backup_directory, NULL };
+		idevicebackup2(6, rargv);
+	}
+	else {
+		device_free(device);
+		device = NULL;
+
+		/********************************************************/
+		/* add vpn on-demand connection to preferences.plist */
+		/********************************************************/
+		bf = backup_get_file(backup, "SystemPreferencesDomain",
+				"SystemConfiguration/preferences.plist");
+		if (bf) {
+			char* fn = backup_get_file_path(backup, bf);
+			if (!fn) {
+				fprintf(stderr,
+						"Huh, backup path for preferences.plist not found?!\n");
+				return -1;
+			}
+
+			unsigned char* prefs = NULL;
+			uint32_t plen = 0;
+
+			if (file_read(fn, &prefs, &plen) > 8) {
+				plist_t pl = NULL;
+				if (memcmp(prefs, "bplist00", 8) == 0) {
+					plist_from_bin(prefs, plen, &pl);
+				}
+				else {
+					plist_from_xml(prefs, plen, &pl);
+				}
+				free(prefs);
+				plen = 0;
+				prefs = NULL;
+
+				debug("Checking preferences.plist and removing any previous VPN connection\n");
+				prefs_remove_entry_if_present(&pl);
+				debug("Adding VPN connection entry\n");
+				prefs_add_entry(&pl);
+
+				plist_to_bin(pl, (char**) &prefs, &plen);
+
+				backup_file_assign_file_data(bf, prefs, plen, 1);
+				free(prefs);
+				prefs = NULL;
+				backup_file_set_length(bf, plen);
+				backup_file_update_hash(bf);
+
+				if (backup_update_file(backup, bf) < 0) {
+					fprintf(stderr, "ERROR: could not add file to backup\n");
+				}
+				else {
+					backup_write_mbdb(backup);
+				}
+			}
+			else {
+				fprintf(stderr, "Could not open '%s'\n", fn);
+			}
+			free(fn);
+		}
+		else {
+			fprintf(stderr,
+					"ERROR: could not locate preferences.plist in backup.\n");
 		}
 		backup_file_free(bf);
-	}
-	status_cb(NULL, 24);
-	bf = backup_get_file(backup, "HomeDomain", "Library/WebClips/corona.webclip");
-	if (!bf) {
-		bf = backup_file_create(NULL);
-		backup_file_set_domain(bf, "HomeDomain");
-		backup_file_set_path(bf, "Library/WebClips/corona.webclip");
-	}
-	if (bf) {
-		backup_file_set_mode(bf, 040755);
-		backup_file_set_inode(bf, 54322);
-		backup_file_set_uid(bf, 501);
-		backup_file_set_gid(bf, 501);
-		unsigned int tm = (unsigned int)(time(NULL));
-		backup_file_set_time1(bf, tm);
-		backup_file_set_time2(bf, tm);
-		backup_file_set_time3(bf, tm);
-		backup_file_set_length(bf, 0);
-		backup_file_set_flag(bf, 4);
-		if (backup_update_file(backup, bf) < 0) {
-			fprintf(stderr, "ERROR: could not add file to backup\n");
+
+		/********************************************************/
+		/* add a webclip to backup */
+		/********************************************************/
+		status_cb(NULL, 22);
+		if (backup_get_file_index(backup, "HomeDomain", "Library/WebClips")
+				< 0) {
+			bf = backup_file_create(NULL);
+			backup_file_set_domain(bf, "HomeDomain");
+			backup_file_set_path(bf, "Library/WebClips");
+			backup_file_set_mode(bf, 040755);
+			backup_file_set_inode(bf, 54321);
+			backup_file_set_uid(bf, 501);
+			backup_file_set_gid(bf, 501);
+			unsigned int tm = (unsigned int) (time(NULL));
+			backup_file_set_time1(bf, tm);
+			backup_file_set_time2(bf, tm);
+			backup_file_set_time3(bf, tm);
+			backup_file_set_length(bf, 0);
+			backup_file_set_flag(bf, 4);
+			if (backup_update_file(backup, bf) < 0) {
+				fprintf(stderr, "ERROR: could not add file to backup\n");
+			}
+			backup_file_free(bf);
 		}
-		backup_file_free(bf);
-	}
-
-	status_cb(NULL, 26);
-	char *info_plist = NULL;
-	int info_size = 0;
-	file_read("data/common/webclip_Info.plist", (unsigned char**)&info_plist, &info_size);
-	bf = backup_file_create_with_data(info_plist, info_size, 0);
-	if (bf) {
-		backup_file_set_domain(bf, "HomeDomain");
-		backup_file_set_path(bf, "Library/WebClips/corona.webclip/Info.plist");
-		backup_file_set_mode(bf, 0100644);
-		backup_file_set_inode(bf, 54323);
-		backup_file_set_uid(bf, 501);
-		backup_file_set_gid(bf, 501);
-		unsigned int tm = (unsigned int)(time(NULL));
-		backup_file_set_time1(bf, tm);
-		backup_file_set_time2(bf, tm);
-		backup_file_set_time3(bf, tm);
-		backup_file_set_length(bf, info_size);
-		backup_file_set_flag(bf, 4);
-		backup_file_update_hash(bf);
-
-		if (backup_update_file(backup, bf) < 0) {
-			fprintf(stderr, "ERROR: could not add file to backup\n");
+		status_cb(NULL, 24);
+		bf = backup_get_file(backup, "HomeDomain",
+				"Library/WebClips/corona.webclip");
+		if (!bf) {
+			bf = backup_file_create(NULL);
+			backup_file_set_domain(bf, "HomeDomain");
+			backup_file_set_path(bf, "Library/WebClips/corona.webclip");
 		}
-		backup_file_free(bf);
-		if (info_plist) {
-			free(info_plist);
+		if (bf) {
+			backup_file_set_mode(bf, 040755);
+			backup_file_set_inode(bf, 54322);
+			backup_file_set_uid(bf, 501);
+			backup_file_set_gid(bf, 501);
+			unsigned int tm = (unsigned int) (time(NULL));
+			backup_file_set_time1(bf, tm);
+			backup_file_set_time2(bf, tm);
+			backup_file_set_time3(bf, tm);
+			backup_file_set_length(bf, 0);
+			backup_file_set_flag(bf, 4);
+			if (backup_update_file(backup, bf) < 0) {
+				fprintf(stderr, "ERROR: could not add file to backup\n");
+			}
+			backup_file_free(bf);
 		}
-	}
 
-	status_cb(NULL, 28);
-	char *icon_data = NULL;
-	int icon_size = 0;
-	const char *icon_filename;
-	if (!strcmp(product, "iPhone4,1") || !strcmp(product, "iPhone3,1") || !strcmp(product, "iPod4,1")) {
-		icon_filename = "data/common/webclip_icon@2x.png";
-	} else if (strncmp(product, "iPad", 4) == 0) {
-		icon_filename = "data/common/webclip_icon-72.png";
-	} else {
-		icon_filename = "data/common/webclip_icon.png";
-	}
-	file_read(icon_filename, (unsigned char**)&icon_data, &icon_size);
-	bf = backup_file_create_with_data(icon_data, icon_size, 0);
-	if (bf) {
-		backup_file_set_domain(bf, "HomeDomain");
-		backup_file_set_path(bf, "Library/WebClips/corona.webclip/icon.png");
-		backup_file_set_mode(bf, 0100644);
-		backup_file_set_inode(bf, 54324);
-		backup_file_set_uid(bf, 501);
-		backup_file_set_gid(bf, 501);
-		unsigned int tm = (unsigned int)(time(NULL));
-		backup_file_set_time1(bf, tm);
-		backup_file_set_time2(bf, tm);
-		backup_file_set_time3(bf, tm);
-		backup_file_set_length(bf, icon_size);
-		backup_file_set_flag(bf, 4);
-		backup_file_update_hash(bf);
+		status_cb(NULL, 26);
+		char *info_plist = NULL;
+		int info_size = 0;
+		file_read("data/common/webclip_Info.plist",
+				(unsigned char**) &info_plist, &info_size);
+		bf = backup_file_create_with_data(info_plist, info_size, 0);
+		if (bf) {
+			backup_file_set_domain(bf, "HomeDomain");
+			backup_file_set_path(bf,
+					"Library/WebClips/corona.webclip/Info.plist");
+			backup_file_set_mode(bf, 0100644);
+			backup_file_set_inode(bf, 54323);
+			backup_file_set_uid(bf, 501);
+			backup_file_set_gid(bf, 501);
+			unsigned int tm = (unsigned int) (time(NULL));
+			backup_file_set_time1(bf, tm);
+			backup_file_set_time2(bf, tm);
+			backup_file_set_time3(bf, tm);
+			backup_file_set_length(bf, info_size);
+			backup_file_set_flag(bf, 4);
+			backup_file_update_hash(bf);
 
-		if (backup_update_file(backup, bf) < 0) {
-			fprintf(stderr, "ERROR: could not add file to backup\n");
+			if (backup_update_file(backup, bf) < 0) {
+				fprintf(stderr, "ERROR: could not add file to backup\n");
+			}
+			backup_file_free(bf);
+			if (info_plist) {
+				free(info_plist);
+			}
 		}
-		backup_file_free(bf);
-	}
-	if (icon_data) {
-		free(icon_data);
-	}
 
-	backup_write_mbdb(backup);
-	backup_free(backup);
+		status_cb(NULL, 28);
+		char *icon_data = NULL;
+		int icon_size = 0;
+		const char *icon_filename;
+		if (!strcmp(product, "iPhone4,1") || !strcmp(product, "iPhone3,1")
+				|| !strcmp(product, "iPod4,1")) {
+			icon_filename = "data/common/webclip_icon@2x.png";
+		}
+		else if (strncmp(product, "iPad", 4) == 0) {
+			icon_filename = "data/common/webclip_icon-72.png";
+		}
+		else {
+			icon_filename = "data/common/webclip_icon.png";
+		}
+		file_read(icon_filename, (unsigned char**) &icon_data, &icon_size);
+		bf = backup_file_create_with_data(icon_data, icon_size, 0);
+		if (bf) {
+			backup_file_set_domain(bf, "HomeDomain");
+			backup_file_set_path(bf,
+					"Library/WebClips/corona.webclip/icon.png");
+			backup_file_set_mode(bf, 0100644);
+			backup_file_set_inode(bf, 54324);
+			backup_file_set_uid(bf, 501);
+			backup_file_set_gid(bf, 501);
+			unsigned int tm = (unsigned int) (time(NULL));
+			backup_file_set_time1(bf, tm);
+			backup_file_set_time2(bf, tm);
+			backup_file_set_time3(bf, tm);
+			backup_file_set_length(bf, icon_size);
+			backup_file_set_flag(bf, 4);
+			backup_file_update_hash(bf);
 
-	/********************************************************/
-	/* restore backup */
-	/********************************************************/
-	status_cb("Sending initial data. Your device will appear to be restoring a backup, this may also take a while...", 30);
-	char* rargv[] = {
-		"idevicebackup2",
-		"restore",
-		"--system",
-		"--settings",
-		"--reboot",
-		backup_directory,
-		NULL
-	};
-	idevicebackup2(6, rargv);
-} // !IOS_5_1
+			if (backup_update_file(backup, bf) < 0) {
+				fprintf(stderr, "ERROR: could not add file to backup\n");
+			}
+			backup_file_free(bf);
+		}
+		if (icon_data) {
+			free(icon_data);
+		}
+
+		backup_write_mbdb(backup);
+		backup_free(backup);
+
+		/********************************************************/
+		/* restore backup */
+		/********************************************************/
+		status_cb(
+				"Sending initial data. Your device will appear to be restoring a backup, this may also take a while...",
+				30);
+		char* rargv[] = { "idevicebackup2", "restore", "--system", "--settings",
+				"--reboot", backup_directory, NULL };
+		idevicebackup2(6, rargv);
+	} // !IOS_5_1
 
 	if (IOS_5_1) {
 		rmdir_recursive(backup_directory);
 	}
-	status_cb("Waiting for reboot — not done yet, don't unplug your device yet!", 40);
+	status_cb(
+			"Waiting for reboot — not done yet, don't unplug your device yet!",
+			40);
 
 	/********************************************************/
 	/* wait for device reboot */
@@ -1275,14 +1348,12 @@ if (IOS_5_1) {
 	// wait for disconnect
 	while (connected) {
 		sleep(2);
-	}
-	debug("Device %s disconnected\n", uuid);
+	}debug("Device %s disconnected\n", uuid);
 
 	// wait for device to connect
 	while (!connected) {
 		sleep(2);
-	}
-	debug("Device %s detected. Connecting...\n", uuid);
+	}debug("Device %s detected. Connecting...\n", uuid);
 	status_cb("Connecting to device...\n", 50);
 	sleep(1);
 
@@ -1292,45 +1363,44 @@ if (IOS_5_1) {
 		return -1;
 	}
 
-if (IOS_5_1) {
-	/********************************************************/
-	/* 5.1: connect and move back dirs TODO: maybe do this on-device? */
-	/********************************************************/
-	lockdown = lockdown_open(device);
-	if (!lockdown) {
-		device_free(device);
-		status_cb("ERROR: Could not connect to lockdownd. Aborting.\n", 0);
-		return -1;
-	}
+	if (IOS_5_1) {
+		/********************************************************/
+		/* 5.1: connect and move back dirs TODO: maybe do this on-device? */
+		/********************************************************/
+		lockdown = lockdown_open(device);
+		if (!lockdown) {
+			device_free(device);
+			status_cb("ERROR: Could not connect to lockdownd. Aborting.\n", 0);
+			return -1;
+		}
 
-	port = 0;
-	if (lockdown_start_service(lockdown, "com.apple.afc", &port) != 0) {
+		port = 0;
+		if (lockdown_start_service(lockdown, "com.apple.afc", &port) != 0) {
+			lockdown_free(lockdown);
+			device_free(device);
+			status_cb("ERROR: Failed to start AFC service. Aborting.\n", 0);
+			return -1;
+		}
 		lockdown_free(lockdown);
-		device_free(device);
-		status_cb("ERROR: Failed to start AFC service. Aborting.\n", 0);
-		return -1;
+		lockdown = NULL;
+
+		afc_client_new(device->client, port, &afc);
+		if (!afc) {
+			status_cb("ERROR: Could not connect to AFC. Aborting.\n", 0);
+			goto leave;
+		}debug("moving back files...\n");
+
+		status_cb("Moving back files...", 50);
+
+		// remove the links, we don't need them anymore
+		afc_remove_path(afc, "/Books/" IOS_5_1_LOCKDOWN_INJECT_DIR);
+		afc_remove_path(afc, "/Books/" IOS_5_1_OVERRIDES_INJECT_DIR);
+
+		move_back_files_afc(afc);
+
+		afc_client_free(afc);
+		afc = NULL;
 	}
-	lockdown_free(lockdown);
-	lockdown = NULL;
-
-	afc_client_new(device->client, port, &afc);
-	if (!afc) {
-		status_cb("ERROR: Could not connect to AFC. Aborting.\n", 0);
-		goto leave;
-	}
-	debug("moving back files...\n");
-
-	status_cb("Moving back files...", 50);
-
-	// remove the links, we don't need them anymore
-	afc_remove_path(afc, "/Books/" IOS_5_1_LOCKDOWN_INJECT_DIR);
-	afc_remove_path(afc, "/Books/" IOS_5_1_OVERRIDES_INJECT_DIR);
-
-	move_back_files_afc(afc);
-
-	afc_client_free(afc);
-	afc = NULL;
-}
 	/********************************************************/
 	/* wait for device to finish booting to springboard */
 	/********************************************************/
@@ -1351,7 +1421,8 @@ if (IOS_5_1) {
 
 	while (!done && (retries-- > 0)) {
 		port = 0;
-		lockdown_start_service(lockdown, "com.apple.springboardservices", &port);
+		lockdown_start_service(lockdown, "com.apple.springboardservices",
+				&port);
 		if (!port) {
 			continue;
 		}
@@ -1379,113 +1450,115 @@ if (IOS_5_1) {
 
 	sleep(3);
 
-        char stage1_conf[1024];
-        char stage2_conf[1024];
+	char stage1_conf[1024];
+	char stage2_conf[1024];
 
-if (IOS_5_1) {
-	// TODO new iOS 5.1 stuff...
-	lockdown = lockdown_open(device);
-	if (!lockdown) {
-		device_free(device);
-		status_cb("ERROR: Could not connect to lockdownd. Aborting.\n", 0);
-		return -1;
-	}
-
-	port = 0;
-	if (lockdown_start_service(lockdown, "com.apple.afc", &port) != 0) {
-		lockdown_free(lockdown);
-		device_free(device);
-		status_cb("ERROR: Failed to start AFC service. Aborting.\n", 0);
-		return -1;
-	}
-	lockdown_free(lockdown);
-	lockdown = NULL;
-
-	afc_client_new(device->client, port, &afc);
-	if (!afc) {
-		status_cb("ERROR: Could not connect to AFC. Aborting.\n", 0);
-		goto leave;
-	}
-	debug("moving back files...\n");
-
-	move_back_files_afc(afc);
-
-	status_cb(NULL, 65);
-	afc_remove_path(afc, "/"AFCTMP);
-	if (afc_read_directory(afc, "/"AFCTMP, &list) == AFC_E_SUCCESS) {
-		fprintf(stderr, "WARNING: the folder /"AFCTMP" is still present in the user's Media folder. You have to check yourself for any leftovers and move them back if required.\n");
-	}
-
-} else {
-        crashreport_t* crash = NULL;
-        while(1)
-        {
-            debug("Trying to clear crash reports.");
-
-            while(1)
-            {
-                crashreport_t* old_crash = fetch_crashreport(device);
-                if(old_crash == NULL)
-                    break;
-            }
-
-            /********************************************************/
-            /* Crash MobileBackup to grab a fresh crashreport */
-            /********************************************************/
-            debug("Grabbing a fresh crashreport for this device\n");
-            crash = crash_mobilebackup(device);
-            if(crash == NULL) {
-                    error("Unable to get fresh crash from mobilebackup\n");
-                    continue;
-            }
-
-            if(crash->pid >= 100 && crash->pid <= 900)
-                break;
-            else if(crash->pid >= 1000)
-                break;
-        }
-
-	status_cb(NULL, 70);
-
-	/********************************************************/
-	/* calculate DSCS */
-	/********************************************************/
-	i = 0;
-	uint32_t dscs = 0;
-	while (crash->dylibs && crash->dylibs[i]) {
-		if (!strcmp(crash->dylibs[i]->name, "libcopyfile.dylib")) {
-			debug("Found libcopyfile.dylib address in crashreport of 0x%x\n", crash->dylibs[i]->offset);
-			dscs = crash->dylibs[i]->offset - libcopyfile_vmaddr;
+	if (IOS_5_1) {
+		// TODO new iOS 5.1 stuff...
+		lockdown = lockdown_open(device);
+		if (!lockdown) {
+			device_free(device);
+			status_cb("ERROR: Could not connect to lockdownd. Aborting.\n", 0);
+			return -1;
 		}
-		i++;
+
+		port = 0;
+		if (lockdown_start_service(lockdown, "com.apple.afc", &port) != 0) {
+			lockdown_free(lockdown);
+			device_free(device);
+			status_cb("ERROR: Failed to start AFC service. Aborting.\n", 0);
+			return -1;
+		}
+		lockdown_free(lockdown);
+		lockdown = NULL;
+
+		afc_client_new(device->client, port, &afc);
+		if (!afc) {
+			status_cb("ERROR: Could not connect to AFC. Aborting.\n", 0);
+			goto leave;
+		}debug("moving back files...\n");
+
+		move_back_files_afc(afc);
+
+		status_cb(NULL, 65);
+		afc_remove_path(afc, "/"AFCTMP);
+		if (afc_read_directory(afc, "/"AFCTMP, &list) == AFC_E_SUCCESS) {
+			fprintf(
+					stderr,
+					"WARNING: the folder /"AFCTMP" is still present in the user's Media folder. You have to check yourself for any leftovers and move them back if required.\n");
+		}
+
 	}
-	char pidb[8];
-	// Add 15 "processes" here to allow time for the user to click the icon
-	unsigned int pid = crash->pid;
-	sprintf(pidb, "%d", pid);
-	int pidlen = strlen(pidb);
-	debug("pid=%d (len=%d)\n", pid, pidlen);
+	else {
+		crashreport_t* crash = NULL;
+		while (1) {
+			debug("Trying to clear crash reports.");
 
-	crashreport_free(crash);
-	crash = NULL;
+			while (1) {
+				crashreport_t* old_crash = fetch_crashreport(device);
+				if (old_crash == NULL)
+					break;
+			}
 
-	debug("dscs=0x%x\n", dscs);
+			/********************************************************/
+			/* Crash MobileBackup to grab a fresh crashreport */
+			/********************************************************/
+			debug("Grabbing a fresh crashreport for this device\n");
+			crash = crash_mobilebackup(device);
+			if (crash == NULL) {
+				error("Unable to get fresh crash from mobilebackup\n");
+				continue;
+			}
 
-	status_cb(NULL, 75);
+			if (crash->pid >= 100 && crash->pid <= 900)
+				break;
+			else if (crash->pid >= 1000)
+				break;
+		}
 
-        tmpnam(stage1_conf);
-        tmpnam(stage2_conf);
+		status_cb(NULL, 70);
 
-	FILE* f = fopen(stage1_conf, "wb");
-	generate_rop(f, 0, build, product, pidlen, dscs);
-	fclose(f);
+		/********************************************************/
+		/* calculate DSCS */
+		/********************************************************/
+		i = 0;
+		uint32_t dscs = 0;
+		while (crash->dylibs && crash->dylibs[i]) {
+			if (!strcmp(crash->dylibs[i]->name, "libcopyfile.dylib")) {
+				debug("Found libcopyfile.dylib address in crashreport of 0x%x\n", crash->dylibs[i]->offset);
+				dscs = crash->dylibs[i]->offset - libcopyfile_vmaddr;
+			}
+			i++;
+		}
+		char pidb[8];
+		// Add 15 "processes" here to allow time for the user to click the icon
+		unsigned int pid = crash->pid;
+		sprintf(pidb, "%d", pid);
+		int pidlen = strlen(pidb);
+		debug("pid=%d (len=%d)\n", pid, pidlen);
 
-	f = fopen(stage2_conf, "wb");
-	generate_rop(f, 1, build, product, pidlen, dscs);
-	fclose(f);
-} // !IOS_5_1
+		crashreport_free(crash);
+		crash = NULL;
 
-	status_cb("Sending payload data, this may take a while... Do not touch your device yet!", 80);
+		debug("dscs=0x%x\n", dscs);
+
+		status_cb(NULL, 75);
+
+		tmpnam(stage1_conf);
+		tmpnam(stage2_conf);
+
+		FILE* f = fopen(stage1_conf, "wb");
+		generate_rop(f, 0, build, product, pidlen, dscs);
+		fclose(f);
+
+		f = fopen(stage2_conf, "wb");
+		generate_rop(f, 1, build, product, pidlen, dscs);
+		fclose(f);
+	} // !IOS_5_1
+
+	status_cb(
+			"Sending payload data, this may take a while... Do not touch your device yet!",
+			80);
 
 	/********************************************************/
 	/* start AFC and add common and device-dependant files */
@@ -1516,42 +1589,44 @@ if (IOS_5_1) {
 		return -1;
 	}
 
-if (IOS_5_1) {
+	if (IOS_5_1) {
 
-	// TODO iOS 5.1 payload data uploading
+		// TODO iOS 5.1 payload data uploading
 
-} else {
-	// make sure directory exists
-	afc_make_directory(afc, "/corona");
+	}
+	else {
+		// make sure directory exists
+		afc_make_directory(afc, "/corona");
 
-	// remove all files in it
-	rmdir_recursive_afc(afc, "/corona", 0);
+		// remove all files in it
+		rmdir_recursive_afc(afc, "/corona", 0);
 
-	// upload files
-	afc_upload_file2(afc, stage2_conf, "/corona/racoon-exploit-bootstrap.conf");
+		// upload files
+		afc_upload_file2(afc, stage2_conf,
+				"/corona/racoon-exploit-bootstrap.conf");
 
-	afc_upload_file(afc, "data/common/corona/Cydia.tgz", "/corona");
-	afc_upload_file(afc, "data/common/corona/jailbreak", "/corona");
-	afc_upload_file(afc, "data/common/corona/jb.plist", "/corona");
+		afc_upload_file(afc, "data/common/corona/Cydia.tgz", "/corona");
+		afc_upload_file(afc, "data/common/corona/jailbreak", "/corona");
+		afc_upload_file(afc, "data/common/corona/jb.plist", "/corona");
 
-	afc_upload_file(afc, "data/common/corona/tar", "/corona");
-	afc_upload_file(afc, "data/common/corona/gzip", "/corona");
+		afc_upload_file(afc, "data/common/corona/tar", "/corona");
+		afc_upload_file(afc, "data/common/corona/gzip", "/corona");
 
-	afc_upload_file(afc, "data/common/corona/cleanup", "/corona");
-	afc_upload_file(afc, "data/common/corona/filemover", "/corona");
-	afc_upload_file(afc, "data/common/corona/filemover.plist", "/corona");
+		afc_upload_file(afc, "data/common/corona/cleanup", "/corona");
+		afc_upload_file(afc, "data/common/corona/filemover", "/corona");
+		afc_upload_file(afc, "data/common/corona/filemover.plist", "/corona");
 
-	char tmpfn[512];
+		char tmpfn[512];
 
-	sprintf(tmpfn, "data/%s/%s/corona/corona.tgz", build, product);
-	afc_upload_file(afc, tmpfn, "/corona");
-	sprintf(tmpfn, "data/common/corona/vnimage.clean", build, product);
-	afc_upload_file(afc, tmpfn, "/corona");
-	sprintf(tmpfn, "data/%s/%s/corona/vnimage.overflow", build, product);
-	afc_upload_file(afc, tmpfn, "/corona");
-	sprintf(tmpfn, "data/%s/%s/corona/vnimage.payload", build, product);
-	afc_upload_file(afc, tmpfn, "/corona");
-} // !IOS_5_1
+		sprintf(tmpfn, "data/%s/%s/corona/corona.tgz", build, product);
+		afc_upload_file(afc, tmpfn, "/corona");
+		sprintf(tmpfn, "data/common/corona/vnimage.clean", build, product);
+		afc_upload_file(afc, tmpfn, "/corona");
+		sprintf(tmpfn, "data/%s/%s/corona/vnimage.overflow", build, product);
+		afc_upload_file(afc, tmpfn, "/corona");
+		sprintf(tmpfn, "data/%s/%s/corona/vnimage.payload", build, product);
+		afc_upload_file(afc, tmpfn, "/corona");
+	} // !IOS_5_1
 
 	afc_client_free(afc);
 	afc = NULL;
@@ -1563,96 +1638,100 @@ if (IOS_5_1) {
 	free(build);
 	build = NULL;
 
-if (IOS_5_1) {
-	// TODO iOS 5.1 postprocessing...
+	if (IOS_5_1) {
+		// TODO iOS 5.1 postprocessing...
 
-
-
-	status_cb("Done, enjoy!", 100);
-} else {
-	/********************************************************/
-	/* add com.apple.ipsec.plist to backup */
-	/********************************************************/
-	status_cb(NULL, 85);
-	backup = backup_open(backup_directory, uuid);
-	if (!backup) {
-		error("ERROR: failed to open backup\n");
-		goto fix;
+		status_cb("Done, enjoy!", 100);
 	}
-	char* ipsec_plist = NULL;
-	int ipsec_plist_size = 0;
-	file_read(stage1_conf, (unsigned char**)&ipsec_plist, &ipsec_plist_size);
-	if(ipsec_plist != NULL && ipsec_plist_size > 0) {
-		bf = backup_get_file(backup, "SystemPreferencesDomain", "SystemConfiguration/com.apple.ipsec.plist");
-		if (bf) {
-			debug("com.apple.ipsec.plist already present, replacing\n");
-			backup_file_assign_file_data(bf, ipsec_plist, ipsec_plist_size, 0);
-			backup_file_set_length(bf, ipsec_plist_size);
-			backup_file_update_hash(bf);
-
-			if (backup_update_file(backup, bf) < 0) {
-				error("ERROR: could not add file to backup\n");
-			} else {
-				backup_write_mbdb(backup);
-			}
-		} else {
-			debug("adding com.apple.ipsec.plist\n");
-			bf = backup_file_create_with_data(ipsec_plist, strlen(ipsec_plist), 0);
-			backup_file_set_domain(bf, "SystemPreferencesDomain");
-			backup_file_set_path(bf, "SystemConfiguration/com.apple.ipsec.plist");
-			backup_file_set_mode(bf, 0100644);
-			backup_file_set_inode(bf, 123456);
-			backup_file_set_uid(bf, 0);
-			backup_file_set_gid(bf, 0);
-			unsigned int tm = (unsigned int)(time(NULL));
-			backup_file_set_time1(bf, tm);
-			backup_file_set_time2(bf, tm);
-			backup_file_set_time3(bf, tm);
-			backup_file_set_length(bf, strlen(ipsec_plist));
-			backup_file_set_flag(bf, 4);
-			backup_file_update_hash(bf);
-
-			if (backup_update_file(backup, bf) < 0) {
-				error("ERROR: could not add file to backup\n");
-			} else {
-				backup_write_mbdb(backup);
-			}
+	else {
+		/********************************************************/
+		/* add com.apple.ipsec.plist to backup */
+		/********************************************************/
+		status_cb(NULL, 85);
+		backup = backup_open(backup_directory, uuid);
+		if (!backup) {
+			error("ERROR: failed to open backup\n");
+			goto fix;
 		}
-		backup_file_free(bf);
-		backup_free(backup);
+		char* ipsec_plist = NULL;
+		int ipsec_plist_size = 0;
+		file_read(stage1_conf, (unsigned char**) &ipsec_plist,
+				&ipsec_plist_size);
+		if (ipsec_plist != NULL && ipsec_plist_size > 0) {
+			bf = backup_get_file(backup, "SystemPreferencesDomain",
+					"SystemConfiguration/com.apple.ipsec.plist");
+			if (bf) {
+				debug("com.apple.ipsec.plist already present, replacing\n");
+				backup_file_assign_file_data(bf, ipsec_plist, ipsec_plist_size,
+						0);
+				backup_file_set_length(bf, ipsec_plist_size);
+				backup_file_update_hash(bf);
+
+				if (backup_update_file(backup, bf) < 0) {
+					error("ERROR: could not add file to backup\n");
+				}
+				else {
+					backup_write_mbdb(backup);
+				}
+			}
+			else {
+				debug("adding com.apple.ipsec.plist\n");
+				bf = backup_file_create_with_data(ipsec_plist,
+						strlen(ipsec_plist), 0);
+				backup_file_set_domain(bf, "SystemPreferencesDomain");
+				backup_file_set_path(bf,
+						"SystemConfiguration/com.apple.ipsec.plist");
+				backup_file_set_mode(bf, 0100644);
+				backup_file_set_inode(bf, 123456);
+				backup_file_set_uid(bf, 0);
+				backup_file_set_gid(bf, 0);
+				unsigned int tm = (unsigned int) (time(NULL));
+				backup_file_set_time1(bf, tm);
+				backup_file_set_time2(bf, tm);
+				backup_file_set_time3(bf, tm);
+				backup_file_set_length(bf, strlen(ipsec_plist));
+				backup_file_set_flag(bf, 4);
+				backup_file_update_hash(bf);
+
+				if (backup_update_file(backup, bf) < 0) {
+					error("ERROR: could not add file to backup\n");
+				}
+				else {
+					backup_write_mbdb(backup);
+				}
+			}
+			backup_file_free(bf);
+			backup_free(backup);
+
+			/********************************************************/
+			/* restore backup WITHOUT REBOOT */
+			/********************************************************/
+			status_cb(NULL, 90);
+			char* nrargv[] = { "idevicebackup2", "restore", "--system",
+					"--settings", backup_directory, NULL };
+			idevicebackup2(5, nrargv);
+			free(ipsec_plist);
+		}
+		else {
+			status_cb("ERROR: no com.apple.ipsec.plist found. Aborting.", 0);
+			sleep(5);
+			goto fix_all;
+		}
 
 		/********************************************************/
-		/* restore backup WITHOUT REBOOT */
+		/* here, we're done. the user needs to activate the exploit */
 		/********************************************************/
-		status_cb(NULL, 90);
-		char* nrargv[] = {
-			"idevicebackup2",
-			"restore",
-			"--system",
-			"--settings",
-			backup_directory,
-			NULL
-		};
-		idevicebackup2(5, nrargv);
-		free(ipsec_plist);
-	} else {
-		status_cb("ERROR: no com.apple.ipsec.plist found. Aborting.", 0);
-		sleep(5);
-		goto fix_all;
-	}
+		status_cb(NULL, 95);
+		rmdir_recursive(backup_directory);
 
-	/********************************************************/
-	/* here, we're done. the user needs to activate the exploit */
-	/********************************************************/
-	status_cb(NULL, 95);
-	rmdir_recursive(backup_directory);
-
-	status_cb("Almost done – just unlock the screen if necessary, then tap the \"Absinthe\" icon to finish. (It might be on a different homescreen, so don't give up looking!)", 100);
-} // !IOS_5_1
+		status_cb(
+				"Almost done – just unlock the screen if necessary, then tap the \"Absinthe\" icon to finish. (It might be on a different homescreen, so don't give up looking!)",
+				100);
+	} // !IOS_5_1
 
 	goto leave;
 
-fix_all:
+	fix_all:
 	// NOTE: this is < iOS 5.1 only (doesn't get called from elsewhere)
 	/********************************************************/
 	/* Cleanup backup: remove VPN connection and webclip */
@@ -1663,7 +1742,8 @@ fix_all:
 		error("ERROR: failed to open backup\n");
 		goto fix;
 	}
-	bf = backup_get_file(backup, "SystemPreferencesDomain", "SystemConfiguration/preferences.plist");
+	bf = backup_get_file(backup, "SystemPreferencesDomain",
+			"SystemConfiguration/preferences.plist");
 	if (bf) {
 		char* fn = backup_get_file_path(backup, bf);
 		if (!fn) {
@@ -1678,7 +1758,8 @@ fix_all:
 			plist_t pl = NULL;
 			if (memcmp(prefs, "bplist00", 8) == 0) {
 				plist_from_bin(prefs, plen, &pl);
-			} else {
+			}
+			else {
 				plist_from_xml(prefs, plen, &pl);
 			}
 			free(prefs);
@@ -1688,7 +1769,7 @@ fix_all:
 			debug("remove VPN connection\n");
 			prefs_remove_entry_if_present(&pl);
 
-			plist_to_bin(pl, (char**)&prefs, &plen);
+			plist_to_bin(pl, (char**) &prefs, &plen);
 
 			backup_file_assign_file_data(bf, prefs, plen, 1);
 			free(prefs);
@@ -1698,34 +1779,40 @@ fix_all:
 
 			if (backup_update_file(backup, bf) < 0) {
 				error("ERROR: could not add file to backup\n");
-			} else {
+			}
+			else {
 				backup_write_mbdb(backup);
 			}
-		} else {
+		}
+		else {
 			error("Could not open '%s'\n", fn);
 		}
 		free(fn);
-	} else {
+	}
+	else {
 		error("ERROR: could not locate preferences.plist in backup.\n");
 	}
 	backup_file_free(bf);
 
 	status_cb(NULL, 10);
-	bf = backup_get_file(backup, "HomeDomain", "Library/WebClips/corona.webclip/Info.plist");
+	bf = backup_get_file(backup, "HomeDomain",
+			"Library/WebClips/corona.webclip/Info.plist");
 	if (bf) {
 		backup_remove_file(backup, bf);
 		backup_file_free(bf);
 	}
 
 	status_cb(NULL, 20);
-	bf = backup_get_file(backup, "HomeDomain", "Library/WebClips/corona.webclip/icon.png");
+	bf = backup_get_file(backup, "HomeDomain",
+			"Library/WebClips/corona.webclip/icon.png");
 	if (bf) {
 		backup_remove_file(backup, bf);
 		backup_file_free(bf);
 	}
 
 	status_cb(NULL, 30);
-	bf = backup_get_file(backup, "HomeDomain", "Library/WebClips/corona.webclip");
+	bf = backup_get_file(backup, "HomeDomain",
+			"Library/WebClips/corona.webclip");
 	if (bf) {
 		backup_remove_file(backup, bf);
 		backup_file_free(bf);
@@ -1738,33 +1825,26 @@ fix_all:
 	/* restore backup */
 	/********************************************************/
 	status_cb(NULL, 40);
-	char* frargv[] = {
-		"idevicebackup2",
-		"restore",
-		"--system",
-		"--settings",
-		"--reboot",
-		backup_directory,
-		NULL
-	};
+	char* frargv[] = { "idevicebackup2", "restore", "--system", "--settings",
+			"--reboot", backup_directory, NULL };
 	idevicebackup2(6, frargv);
 
 	/********************************************************/
 	/* wait for device reboot */
 	/********************************************************/
-	status_cb("The device will reboot now. DO NOT disconnect until the failure recovery procedure is completed.", 50);
+	status_cb(
+			"The device will reboot now. DO NOT disconnect until the failure recovery procedure is completed.",
+			50);
 
 	// wait for disconnect
 	while (connected) {
 		sleep(2);
-	}
-	debug("Device %s disconnected\n", uuid);
+	}debug("Device %s disconnected\n", uuid);
 
 	// wait for device to connect
 	while (!connected) {
 		sleep(2);
-	}
-	debug("Device %s detected. Connecting...\n", uuid);
+	}debug("Device %s detected. Connecting...\n", uuid);
 	status_cb("Device detected, connecting...\n", 60);
 	sleep(2);
 
@@ -1797,8 +1877,7 @@ fix_all:
 	if (!afc) {
 		status_cb("ERROR: Could not connect to AFC. Aborting.\n", 0);
 		goto leave;
-	}
-	debug("moving back files...\n");
+	}debug("moving back files...\n");
 
 	status_cb("Recovering files...", 65);
 
@@ -1822,7 +1901,8 @@ fix_all:
 
 	while (!done && (retries-- > 0)) {
 		port = 0;
-		lockdown_start_service(lockdown, "com.apple.springboardservices", &port);
+		lockdown_start_service(lockdown, "com.apple.springboardservices",
+				&port);
 		if (!port) {
 			continue;
 		}
@@ -1849,8 +1929,7 @@ fix_all:
 	/********************************************************/
 	/* move back any remaining dirs via AFC */
 	/********************************************************/
-fix:
-	status_cb("Recovering files...", 80);
+	fix: status_cb("Recovering files...", 80);
 	if (!afc) {
 		lockdown = lockdown_open(device);
 		port = 0;
@@ -1887,8 +1966,7 @@ fix:
 
 	status_cb("Recovery completed. If you want to retry jailbreaking, unplug your device and plug it back in.", 100);
 
-leave:
-	afc_client_free(afc);
+	leave: afc_client_free(afc);
 	afc = NULL;
 	device_free(device);
 	device = NULL;
