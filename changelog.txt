@@ -1,3 +1,7 @@
+Version 2.0.5
+~~~~~~~~~~~~~
+- Fixed nasty bug in backup code that could cause the procedure to hang and/or fail
+
 Version 2.0.4
 ~~~~~~~~~~~~~
 - Added iPad2,4 support.
