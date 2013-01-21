@@ -40,6 +40,7 @@ static void setAttributedTitleColor(id view, NSColor* color)
 - (void)applicationWillFinishLaunching:(NSNotification*)aNotification
 {
 	NSWindow* mainwnd = [[NSWindow alloc] initWithContentRect:NSMakeRect(0, 0, WND_WIDTH, WND_HEIGHT) styleMask:NSTitledWindowMask | NSClosableWindowMask | NSMiniaturizableWindowMask backing:NSBackingStoreBuffered defer:TRUE];
+	[mainwnd center];
 	[mainwnd setDelegate:self];
 
 	NSTextField* lbTop = [[NSTextField alloc] initWithFrame:NSMakeRect(10, 270, WND_WIDTH-20, 70)];
@@ -66,7 +67,7 @@ static void setAttributedTitleColor(id view, NSColor* color)
 	NSButton* btnStart = [[NSButton alloc] initWithFrame:NSMakeRect(350, 140, 100, 24)];
 	[btnStart setButtonType:NSMomentaryPushInButton];
 	[btnStart setBezelStyle:NSRoundedBezelStyle];
-	//[btnStart setEnabled:NO];
+	[btnStart setEnabled:NO];
 	[btnStart setTitle:[NSString stringWithUTF8String:BTN_START_TEXT]];
 	[btnStart setTarget:self];
 	[btnStart setAction:@selector(start_clicked:)];
@@ -89,6 +90,7 @@ static void setAttributedTitleColor(id view, NSColor* color)
 	setAttributedTitleColor(lbPaypal, [NSColor blueColor]);
 	[lbPaypal setTarget:self];
 	[lbPaypal setAction:@selector(paypal_clicked:)];
+	[lbPaypal setFocusRingType:NSFocusRingTypeNone];
 
 	NSButton* lbGP = [[NSButton alloc] initWithFrame:NSMakeRect(270, 10, 180, 20)];
 	[lbGP setTitle:[NSString stringWithUTF8String:GP_LINK_TEXT]];
@@ -99,6 +101,7 @@ static void setAttributedTitleColor(id view, NSColor* color)
 	setAttributedTitleColor(lbGP, [NSColor blueColor]);
 	[lbGP setTarget:self];
 	[lbGP setAction:@selector(gp_clicked:)];
+	[lbGP setFocusRingType:NSFocusRingTypeNone];
 
 	[mainwnd setTitle:[NSString stringWithUTF8String:WND_TITLE]];
 	[[mainwnd contentView] addSubview:lbTop];
