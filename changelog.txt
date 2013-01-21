@@ -1,5 +1,6 @@
 Version 2.0.5
 ~~~~~~~~~~~~~
+- Compatible with OSX Mountain Lion
 - Fixed nasty bug in backup code that could cause the procedure to hang and/or fail
 
 Version 2.0.4
