@@ -12,7 +12,7 @@ DESCRIPTION:
 
 SYSTEM REQUIREMENTS:
 
-- MacOSX 10.5/10.6/10.7
+- MacOSX 10.5/10.6/10.7/10.8
 - Windows XP/Vista/7
 - Linux x86/x86_64 (Kernel >= 2.6.15, libgtk+-2.0 >= 2.22.1)
 
